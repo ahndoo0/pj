@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mapper.mapperTraining">
+
+    <select id="selectAll" resultType="ModelTraining">
+        select * from pj_training
+    </select>
+
+    <select id="getArticleTotalRecord" parameterType="java.util.Map"
+        resultType="int">
+        SELECT count(*) FROM pj_training
+        WHERE 1 = 1
+        <if test="searchWord != null and searchWord != ''">
+            AND ( title LIKE CONCAT('%', #{searchWord}, '%') OR
+            content LIKE CONCAT('%', #{searchWord}, '%') )
+        </if>
+    </select>
+
+    <select id="getArticleList" parameterType="java.util.Map"
+        resultType="ModelTraining">
+         SELECT articleno, title, regdate, hit
+        FROM (
+            SELECT @RNUM := @RNUM + 1 AS r, a.* 
+            FROM (
+                    SELECT  
+                           a.articleno, 
+                           a.title, 
+                           a.regdate,
+                           a.hit
+                    FROM 
+                        pj_training a
+                      WHERE
+                        1 = 1
+                        
+                          <if test="searchWord != null">
+                         AND (title LIKE '%${searchWord}%' OR
+                       content LIKE '%${searchWord}%')
+                      </if> 
+                      
+                    ORDER BY articleno DESC
+                 ) a, (SELECT @RNUM:=0) b
+            ) temp
+        WHERE r BETWEEN  #{start} AND #{end}
+        
+    </select>
+
+
+    <select id="getArticle" parameterType="int" resultType="ModelTraining">
+        SELECT articleno, title, content, userid, hit, regdate
+        FROM
+        pj_training
+        WHERE articleno = #{articleno}
+    </select>
+
+    <insert id="insertArticle" parameterType="ModelTraining"
+        useGeneratedKeys="true" keyProperty="articleno">
+        INSERT INTO
+        pj_training ( title , content , userid , hit, regdate)
+        VALUES ( #{title}, #{content}, #{userid}, 0 , now()  )
+    </insert>
+
+    <update id="updateArticle" parameterType="java.util.Map">
+        UPDATE pj_training
+        <set>
+            <if test=" setValue.title     != null and setValue.title   !='' "> title = #{setValue.title } , </if>
+            <if test=" setValue.content   != null and setValue.content !='' "> content = #{setValue.content } , </if>
+            <if test=" setValue.UseYN     != null                           "> UseYN = #{setValue.UseYN } , </if>
+            
+        </set>
+        WHERE 1 = 1
+
+        <if
+            test="whereValue.articleno != null and whereValue.articleno != ''">
+            AND articleno = #{whereValue.articleno}
+        </if>
+        <if test="whereValue.title != null and whereValue.title != ''">
+            AND title = #{whereValue.title}
+        </if>
+        <if test="whereValue.userid != null and whereValue.userid != ''">
+            AND userid = #{whereValue.userid}
+        </if>
+        <if test="whereValue.UseYN != null">
+            AND UseYN = #{whereValue.UseYN}
+        </if>
+    </update>
+
+    <delete id="deleteArticle" parameterType="ModelTraining">
+        DELETE FROM pj_training
+        WHERE 1 = 1
+        <if test="articleno != null and articleno != ''">
+            AND articleno = #{articleno}
+        </if>
+
+        <if test="userid != null and userid != ''">
+            AND userid = #{userid}
+        </if>
+        <if test="UseYN != null">
+            AND UseYN = #{UseYN}
+        </if>
+    </delete>
+
+    <update id="increaseHit" parameterType="int">
+        UPDATE pj_training
+        SET hit=hit+1
+        WHERE articleno=#{articleno}
+    </update>
+
+    <select id="getNextArticle" parameterType="java.util.Map"
+        resultType="ModelTraining">
+        SELECT articleno, title
+        FROM
+        (
+        SELECT @RNUM := @RNUM + 1 AS r, a.*
+        FROM
+        (SELECT articleno, title
+        FROM pj_training
+        WHERE articleno &gt; #{articleno}
+        <if test=" searchWord != null and searchWord != '' ">
+            AND (title LIKE CONCAT('%', #{searchWord}, '%') OR content LIKE
+            CONCAT('%', #{searchWord}, '%') )
+        </if>
+        ORDER BY articleno ASC
+        ) a, (SELECT @RNUM:=0) b
+        ) temp
+        WHERE r = 1
+    </select>
+
+    <select id="getPrevArticle" parameterType="java.util.Map"
+        resultType="ModelTraining">
+        SELECT articleno, title
+        FROM
+        (
+        SELECT @RNUM := @RNUM + 1 AS r, a.*
+        FROM
+        (SELECT articleno, title
+        FROM pj_training
+        WHERE articleno &lt; #{articleno}
+        <if test="searchWord != null and searchWord != ''">
+            AND (title LIKE CONCAT('%', #{searchWord}, '%') OR content LIKE
+            CONCAT('%', #{searchWord}, '%') )
+        </if>
+        ORDER BY articleno DESC
+        ) a, (SELECT @RNUM:=0) b
+        ) temp
+        WHERE r = 1
+    </select>
+
+    
+    <select id="getAttachFile" parameterType="int" resultType="ModelTrainingFile">
+        SELECT attachfileno, filenameorig, filenametemp, filetype, filesize, articleno
+          FROM pj_training_file
+         WHERE attachfileno = #{attachFileNo}
+    </select>
+    
+    <select id="getAttachFileList" parameterType="int" resultType="ModelTrainingFile">
+        SELECT attachfileno, filenameorig, filenametemp, filetype, filesize, articleno 
+          FROM pj_training_file 
+         WHERE articleno = #{articleno} 
+        ORDER BY attachfileno
+    </select>
+    
+    <insert id="insertAttachFile" parameterType="ModelTrainingFile" useGeneratedKeys="true" keyProperty="attachfileno" >
+        INSERT INTO 
+        pj_training_file (filenameorig,    filenametemp, filetype, filesize, articleno)
+        VALUES        ( #{filenameorig}, #{filenametemp}, #{filetype}, #{filesize}, #{articleno})
+    </insert>
+    
+    
+    
+    <delete id="deleteAttachFile" parameterType="ModelTrainingFile">
+        DELETE FROM pj_training_file          
+         WHERE 1 = 1 
+          <if test="attachfileno != null " >
+          AND attachfileno = #{attachfileno}
+          </if>
+          <if test="articleno != null ">
+          AND articleno  = #{articleno}
+          </if>
+          <if test="UseYN != null">
+          AND UseYN    = #{UseYN}
+          </if>
+    </delete>
+    
+     <insert id="insertTrainingApply" parameterType="ModelTrainingApply">
+        INSERT INTO 
+        pj_training_apply (userno, articleno )
+        VALUES        ( #{userno}, #{articleno} )
+    </insert>
+    
+       <delete id="deleteTrainingApply" parameterType="ModelTrainingApply">
+        DELETE FROM pj_training_apply
+        WHERE 1 = 1
+        <if test="articleno != null and articleno != ''">
+            AND articleno = #{articleno}
+        </if>
+
+        <if test="userno != null and userno != ''">
+            AND userno = #{userno}
+        </if>
+     
+    </delete>
+    
+    <select id="selectTraingApplyOne" parameterType="java.util.Map" resultType="ModelTrainingApply">
+        SELECT * FROM pj_training_apply
+        WHERE articleno = #{articleno} and userno = #{userno}
+    </select>
+    
+</mapper>
